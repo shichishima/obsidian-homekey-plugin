@@ -3,8 +3,9 @@
 	"name": "HOME key",
 	"version": "0.1.0",
 	"minAppVersion": "0.15.0",
-	"description": "Move cursor to beginning of line, considering Markdown heading characters.",
+	"description": "Move cursor to beginning of text, considering Markdown heading characters.",
 	"author": "shichishima",
 	"authorUrl": "https://github.com/shichishima/obsidian-homekey-plugin",
-	"isDesktopOnly": false
+	"isDesktopOnly": false,
+	"branch": "main"
 }

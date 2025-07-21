@@ -6,7 +6,7 @@ export default class HomekeyActionPlugin extends Plugin {
 
 		this.addCommand({
 			id: 'normal-homekey',
-			name: 'Normal (considering indents / lists / tasklists)',
+			name: 'Normal (consider indents / lists / task lists)',
 			editorCallback: (editor: Editor, _: MarkdownView) => {
 				this.beginingOfLine(editor, false)
 			}
