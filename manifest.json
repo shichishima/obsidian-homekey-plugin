@@ -6,6 +6,5 @@
 	"description": "Move cursor to beginning of text, considering Markdown heading characters.",
 	"author": "shichishima",
 	"authorUrl": "https://github.com/shichishima/obsidian-homekey-plugin",
-	"isDesktopOnly": false,
-	"branch": "main"
+	"isDesktopOnly": false
 }
