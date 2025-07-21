@@ -1,13 +1,13 @@
 # HOME key action (begining-of-text) for Obsidian
 
 This plugin provides a command that acts like the HOME key.
-(On Mac, action like command+left not control+A)
+(On Mac, action like Command+Left not Control+A)
 
 Execute this command on the line of indent or list text,
 the cursor will move to the beginning of the indented text
 instead of the left edge of the line.
 
-On the other hand, control-A always moves the cursor to the left edge of the line.
+On the other hand, Control-A always moves the cursor to the left edge of the line.
 
 ## command: Normal (consider indents / lists / tasklists)
 
@@ -34,8 +34,8 @@ When pipe character "|" is cursor:
 ```
 
 Unordered list line begins `- `, `* `, or `+ `.
-Task list line begins `- [ ] `, `* [ ] `, or `+ [ ] `
-Ordered list line begins `1. ` or `1) `
+Task list line begins `- [ ] `, `* [ ] `, or `+ [ ] `.
+Ordered list line begins `1. ` or `1) `.
 
 Refer to: https://help.obsidian.md/syntax#Lists
 
