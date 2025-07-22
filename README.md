@@ -7,7 +7,7 @@ For example, on a Mac, Control+A always moves the cursor to the left edge of the
 
 You can bind this command to a hotkey to make Control+A the same as Command+Left.
 
-Even on Windows, if you are using Emacs-type key bindings , you can make Control+A act like the HOME key.
+Even on Windows, if you are using Emacs-type key bindings, you can make Ctrl+A act like the HOME key.
 
 ## command: Normal (consider indents / lists / tasklists)
 
@@ -60,15 +60,13 @@ Refer to: https://help.obsidian.md/syntax#Headings
 
 # Usecase
 ## Mac
-Simply bind the hotkey for this command to Control-A.
+Simply bind the hotkey for this command to Control+A.
 Please use either Normal or Advanced according to your preference.
 
 ## Windows
-Giving up on the OS standard select-all shortcut,
-bind the hotkey for this command to Ctrl-A.
 Used in combination with **[obsidian-emacs-text-editor](https://github.com/Klojer/obsidian-emacs-text-editor)**,
-instead of command `begining-of-line`.
-
+giving up on the OS standard select-all shortcut,
+bind the hotkey to this command instead of `begining-of-line` to Ctrl+A.
 
 ## How to install
 ```
