@@ -1,7 +1,7 @@
 # HOME key action (beginning-of-text) for Obsidian
 
 This plugin provides a command that acts like the HOME key.
-This allows you to set HOE key action to a hotkey.
+This allows you to set HOME key action to a hotkey.
 
 For example, on a Mac, Control+A always moves the cursor to the left edge of the line, but Command+Left moves the cursor to the begining of the text, taking into account indents and markdowns at the beginning of the line.
 
