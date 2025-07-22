@@ -1,15 +1,19 @@
-# HOME key action (begining-of-text) for Obsidian
+# HOME key action (beginning-of-text) for Obsidian
 
 This plugin provides a command that acts like the HOME key.
-(On Mac, action like Command+Left not Control+A)
+This allows you to set HOE key action to a hotkey.
+
+For example, on a Mac, Control+A always moves the cursor to the left edge of the line, but Command+Left moves the cursor to the begining of the text, taking into account indents and markdowns at the beginning of the line.
+
+You can bind this command to a hotkey to make Control+A the same as Command+Left.
+
+Even on Windows, if you are using Emacs-type key bindings , you can make Control+A act like the HOME key.
+
+## command: Normal (consider indents / lists / tasklists)
 
 Execute this command on the line of indent or list text,
 the cursor will move to the beginning of the indented text
 instead of the left edge of the line.
-
-On the other hand, Control-A always moves the cursor to the left edge of the line.
-
-## command: Normal (consider indents / lists / tasklists)
 
 When pipe character "|" is cursor:
 
@@ -33,9 +37,9 @@ When pipe character "|" is cursor:
 |   1. some numbered list item
 ```
 
-Unordered list line begins `- `, `* `, or `+ `.
-Task list line begins `- [ ] `, `* [ ] `, or `+ [ ] `.
-Ordered list line begins `1. ` or `1) `.
+- Unordered list line begins `- `, `* `, or `+ `.
+- Task list line begins `- [ ] `, `* [ ] `, or `+ [ ] `.
+- Ordered list line begins `1. ` or `1) `.
 
 Refer to: https://help.obsidian.md/syntax#Lists
 
@@ -50,7 +54,7 @@ In addition to the above, different from the HOME key action, it also consider h
 (exec again)
 |## heading line
 ```
-Heading begins `# ` to `###### `. (1 to 6)
+- Heading begins `# ` to `###### `. (1 to 6)
 
 Refer to: https://help.obsidian.md/syntax#Headings
 
