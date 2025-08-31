@@ -73,3 +73,9 @@ bind the hotkey to this command instead of `begining-of-line` to Ctrl+A.
 $ npm install
 $ npm run dev
 ```
+
+# Unimplemented
+Execute this command  in the middle of multiple lines of text on the screen, cursor will move to the beginning of the text without considering the visual-line.
+The function to move to the left edge of the visual-line like Command-left is not implemented.
+
+Related docs: https://docs.obsidian.md/Reference/TypeScript+API/EditorCommandName
