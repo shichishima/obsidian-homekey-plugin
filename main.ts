@@ -37,12 +37,23 @@ export default class HomekeyActionPlugin extends Plugin {
 			// Headings
 			// # or ## or... ###### (heading 1 to 6)
 			result = line.match(/^#{1,6}\s/)
+
+			if (result === null) {
+				// Footnotes
+				// [^1]: (not only number)
+				result = line.match(/^\[\^.+\]:\s*/)
+			}
 		}
 
 		if (result === null) {
 			// Ordered lists
 			// 1. or 1)
 			result = line.match(/^\s*\d+[\.\)]\s/)
+		}
+		if (result === null) {
+			// Quotes
+			// >
+			result = line.match(/^\s*>\s*/)
 		}
 		if (result === null) {
 			// Indents, Unordered lists, Task lists
