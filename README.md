@@ -78,7 +78,7 @@ Please use either Normal or Advanced according to your preference.
 ## Windows
 Used in combination with **[obsidian-emacs-text-editor](https://github.com/Klojer/obsidian-emacs-text-editor)**,
 giving up on the OS standard select-all shortcut,
-bind the hotkey to this command instead of `begining-of-line` to Ctrl+A.
+bind the hotkey to this command instead of `beginning-of-line` to Ctrl+A.
 
 # Installation
 ```
