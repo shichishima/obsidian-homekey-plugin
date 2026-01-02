@@ -21,6 +21,14 @@ export default class HomekeyActionPlugin extends Plugin {
 			}
 		});
 
+		this.addCommand({
+			id: 'endkey',
+			name: 'End key (smart end-of-text)',
+			editorCallback: (editor: Editor, _: MarkdownView) => {
+				this.smartEndAction(editor)
+			}
+		});
+
 	}
 
 	onunload() {
@@ -63,13 +71,14 @@ export default class HomekeyActionPlugin extends Plugin {
 		const lastPipeIndex = line.lastIndexOf('|', ch - 1);
 		if (lastPipeIndex === -1) return 0;
 
+		// Locate the first non-space character in the current cell
 		const startOffset = line.slice(lastPipeIndex + 1).search(/\S|$/);
 		const startOfCellContent = lastPipeIndex + 1 + startOffset;
-
 		if (ch > startOfCellContent) {
 			return startOfCellContent;
 		}
 
+		// If already at the start, move to the end of the previous cell content.
 		const secondLastPipeIndex = line.lastIndexOf('|', lastPipeIndex - 1);
 		if (secondLastPipeIndex !== -1) {
 			const endOffset = line.slice(secondLastPipeIndex + 1, lastPipeIndex).trimEnd().length;
@@ -117,4 +126,41 @@ export default class HomekeyActionPlugin extends Plugin {
 			return 0;
 		}
 	}
+
+	smartEndAction(editor: Editor) {
+		const cursor = editor.getCursor();
+		let position = cursor.ch;
+		const line = editor.getLine(cursor.line);
+
+		if (position === line.length) return;
+
+		if (this.isCursorInTable(editor)) {
+			position = this.getEndOfCellPosition(line, position);
+		} else {
+			position = line.length;
+		}
+		editor.setCursor({ line: cursor.line, ch: position })
+	}
+
+	getEndOfCellPosition(line: string, ch: number): number {
+		const nextPipeIndex = line.indexOf('|', ch);
+
+		// If no more pipes are found, move to the very end of the line.
+		if (nextPipeIndex === -1) return line.length;
+
+		// If the cursor is before the actual content ends, move to the end of the content (excluding trailing spaces).
+		const cellContentBeforePipe = line.slice(0, nextPipeIndex);
+		const contentEndOffset = cellContentBeforePipe.trimEnd().length;
+		if (ch < contentEndOffset) {
+			return contentEndOffset;
+		}
+
+		// If already at or past the content end, move to the start of the next cell's content.
+		const nextPipeEndIndex = line.indexOf('|', nextPipeIndex + 1);
+		const searchArea = nextPipeEndIndex === -1 ? line.slice(nextPipeIndex + 1) : line.slice(nextPipeIndex + 1, nextPipeEndIndex);
+
+		const startOffset = searchArea.search(/\S|$/);
+		return nextPipeIndex + 1 + startOffset;
+	}
+
 }
