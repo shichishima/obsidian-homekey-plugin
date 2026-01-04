@@ -177,10 +177,14 @@ export default class HomekeyActionPlugin extends Plugin {
 
 		// If already at or past the content end, move to the start of the next cell's content.
 		const nextPipeEndIndex = line.indexOf('|', nextPipeIndex + 1);
-		const searchArea = nextPipeEndIndex === -1 ? line.slice(nextPipeIndex + 1) : line.slice(nextPipeIndex + 1, nextPipeEndIndex);
 
-		const startOffset = searchArea.search(/\S|$/);
-		return nextPipeIndex + 1 + startOffset;
+		if (nextPipeEndIndex !== -1) {
+			const searchArea = line.slice(nextPipeIndex + 1, nextPipeEndIndex);
+			const startOffset = searchArea.search(/\S|$/);
+			return nextPipeIndex + 1 + startOffset;
+		} else {
+			return ch;
+		}
 	}
 
 
