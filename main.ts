@@ -3,6 +3,8 @@ import { syntaxTree } from '@codemirror/language';
 
 export default class HomekeyActionPlugin extends Plugin {
 
+	CELL_SEPARATOR_REGEX = /(?<!\\)\|/g;
+
 	async onload() {
 
 		this.addCommand({
@@ -29,11 +31,20 @@ export default class HomekeyActionPlugin extends Plugin {
 			}
 		});
 
+		this.addCommand({
+			id: 'cursor-up',
+			name: 'Cursor UP',
+			editorCallback: (editor: Editor, _: MarkdownView) => {
+				this.cursorUpAction(editor)
+			}
+		});
+
 	}
 
 	onunload() {
 
 	}
+
 
 	smartHomeAction(editor: Editor, isAdvanced: boolean) {
 		const cursor = editor.getCursor();
@@ -41,19 +52,24 @@ export default class HomekeyActionPlugin extends Plugin {
 		if (position == 0) return;
 
 		const line = editor.getLine(cursor.line);
-		if (this.isCursorInTable(editor)) {
+		if (this.isPositionInTable(editor)) {
 			position = this.getBeginningOfCellPosition(line, position);
 		} else {
 			position = this.getBeginningOfLinePosition(line, position, isAdvanced);
 		}
-		editor.setCursor({ line: cursor.line, ch: position })
+		editor.setCursor({ line: cursor.line, ch: position });
 	}
 
-	isCursorInTable(editor: Editor): boolean {
+
+	isPositionInTable(editor: Editor, line?: number, ch?: number): boolean {
 		const cm = (editor as any).cm;
 		if (!cm) return false;
 
-		const pos = cm.state.selection.main.head
+		const posObj = (line !== undefined && ch !== undefined)
+			? { line, ch }
+			: editor.getCursor();
+		const pos = editor.posToOffset(posObj);
+
 		const tree = syntaxTree(cm.state);
 
 		let node = tree.resolveInner(pos, -1);
@@ -66,6 +82,7 @@ export default class HomekeyActionPlugin extends Plugin {
 
 		return false;
 	}
+
 
 	getBeginningOfCellPosition(line: string, ch: number): number {
 		const lastPipeIndex = line.lastIndexOf('|', ch - 1);
@@ -87,6 +104,7 @@ export default class HomekeyActionPlugin extends Plugin {
 
 		return ch; // No left cell
 	}
+
 
 	getBeginningOfLinePosition(line: string, ch: number, isAdvanced: boolean): number {
 		let result = null;
@@ -127,6 +145,7 @@ export default class HomekeyActionPlugin extends Plugin {
 		}
 	}
 
+
 	smartEndAction(editor: Editor) {
 		const cursor = editor.getCursor();
 		let position = cursor.ch;
@@ -134,13 +153,14 @@ export default class HomekeyActionPlugin extends Plugin {
 
 		if (position === line.length) return;
 
-		if (this.isCursorInTable(editor)) {
+		if (this.isPositionInTable(editor)) {
 			position = this.getEndOfCellPosition(line, position);
 		} else {
 			position = line.length;
 		}
-		editor.setCursor({ line: cursor.line, ch: position })
+		editor.setCursor({ line: cursor.line, ch: position });
 	}
+
 
 	getEndOfCellPosition(line: string, ch: number): number {
 		const nextPipeIndex = line.indexOf('|', ch);
@@ -163,4 +183,126 @@ export default class HomekeyActionPlugin extends Plugin {
 		return nextPipeIndex + 1 + startOffset;
 	}
 
+
+	cursorUpAction(editor: Editor) {
+		const cursor = editor.getCursor();
+
+		// Top of file
+		if (cursor.line == 0) {
+			// If it is the first line of the file, goUP is OK even if it is in a table.
+			editor.exec('goUp');
+			return;
+		}
+
+		const line = editor.getLine(cursor.line);
+		const ch = cursor.ch;
+		if (!this.isPositionInTable(editor)) {
+			// Out of table
+
+			if (this.isPositionInTable(editor, cursor.line - 1, 1)) {
+				// Line directly below the table, move the cursor to -1 row instead of goUP.
+				const targetCh = this.getChByCellIndex(editor, cursor.line - 1, 0);
+				editor.setCursor({ line: cursor.line - 1, ch: targetCh });
+				return;
+			} else {
+				editor.exec('goUp');
+				return;
+			}
+
+		} else {
+			// In the table
+
+			const lastPipeIndex = line.lastIndexOf('|', ch - 1);
+			if (lastPipeIndex === -1) return;
+
+			// Locate the first non-space character in the current cell
+			const startOffset = line.slice(lastPipeIndex + 1).search(/\S|$/);
+			const startOfCellContent = lastPipeIndex + 1 + startOffset;
+
+			if (ch !== startOfCellContent) {
+				// In cell goUP
+				editor.exec('goUp');
+				return;
+			} else {
+				// At the beginning of the text in a cell, move to the beginning of the same cell one row above
+				const cellIndex = this.getCellIndex(line, ch);
+				this.setCursorToPrevRow(editor, cellIndex);
+				return;
+			}
+		}
+	}
+
+
+	getCellIndex(line: string, ch: number): number {
+		const textBeforeCursor = line.substring(0, ch);
+		const matches = textBeforeCursor.match(this.CELL_SEPARATOR_REGEX);
+
+		if (!matches) return 0;
+
+		return matches.length - 1;
+	}
+
+
+	// Moves the cursor to the beginning of the specified column number in the row above the current row.
+	// It has been confirmed that it is inTable and cursor.line>0.
+	//
+	// (*1)
+	//			    <-- BlankLine
+	// | header | (*2)header |  <-- HeaderRow
+	// | ------ | ---------- |  <-- DelimiterLine
+	// | text   | (*3)text   |  <-- FirstDataRow
+	// | text   | (*4)text   |
+	// | text   | (*5)text   |
+	//
+	// (*2)->(*1) if (cursor.line+1) is DelimiterLine, go out of the table.
+	// (*3)->(*2) if (cursor.line-1) is DelimiterLine, go to same column at (cursor.line-2).
+	// (*4)->(*3),(*5)->(*4) simply go to (cursor.line-1).
+	//
+	setCursorToPrevRow(editor: Editor, cellIndex: number) {
+		const cursor = editor.getCursor();
+		let targetLine = cursor.line;
+		let targetCh = 0;
+
+		if (!this.isPositionInTable(editor, cursor.line - 1, 1)) {
+			// Above row is out-of-table, i.e., Header row. (*2)
+			targetLine -= 2;	// (*2)->(*1)
+			targetCh = 0;		// left edge of line
+		} else {
+			// Above row is in-table, i.e., Data row: (*3)(*4)(*5)
+			const oneLineUp = editor.getLine(cursor.line - 1);
+			const isDelimiterLineAbove = /^\s*\|?[:\s-]+\|[:\s- |]*$/.test(oneLineUp);
+
+			if (isDelimiterLineAbove) {
+				targetLine -= 2;	// (*3)->(*2)
+			} else {
+				targetLine --;		// (*4)->(*3),(*5)->(*4)
+			}
+			targetCh = this.getChByCellIndex(editor, targetLine, cellIndex);
+		}
+		if (targetCh != -1) {
+			// Use cm directly to avoid interference with the table editor
+			const cm = (editor as any).cm;
+			const pos = editor.posToOffset({ line: targetLine, ch: targetCh });
+			cm.dispatch({
+			        selection: { anchor: pos, head: pos }
+			});
+			cm.focus();
+		}
+	}
+
+
+	getChByCellIndex(editor: Editor, line: number, cellIndex: number): number {
+		const lineText = editor.getLine(line);
+		const matches = [...lineText.matchAll(this.CELL_SEPARATOR_REGEX)];
+
+		if (cellIndex >= 0 && cellIndex < matches.length) {
+			const pipeIndex = matches[cellIndex].index!;
+			const afterPipe = lineText.substring(pipeIndex + 1);
+			const firstNonSpaceMatch = afterPipe.search(/\S/);
+
+			return pipeIndex + 1 + (firstNonSpaceMatch !== -1 ? firstNonSpaceMatch : 0);
+		}
+
+		return -1;
+	}
 }
