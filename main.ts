@@ -39,6 +39,14 @@ export default class HomekeyActionPlugin extends Plugin {
 			}
 		});
 
+		this.addCommand({
+			id: 'cursor-down',
+			name: 'Cursor DOWN',
+			editorCallback: (editor: Editor, _: MarkdownView) => {
+				this.cursorDownAction(editor)
+			}
+		});
+
 	}
 
 	onunload() {
@@ -250,8 +258,7 @@ export default class HomekeyActionPlugin extends Plugin {
 	// Moves the cursor to the beginning of the specified column number in the row above the current row.
 	// It has been confirmed that it is inTable and cursor.line>0.
 	//
-	// (*1)
-	//			    <-- BlankLine
+	// (*1)			    <-- BlankLine
 	// | header | (*2)header |  <-- HeaderRow
 	// | ------ | ---------- |  <-- DelimiterLine
 	// | text   | (*3)text   |  <-- FirstDataRow
@@ -269,7 +276,7 @@ export default class HomekeyActionPlugin extends Plugin {
 
 		if (!this.isPositionInTable(editor, cursor.line - 1, 1)) {
 			// Above row is out-of-table, i.e., Header row. (*2)
-			targetLine -= 2;	// (*2)->(*1)
+			targetLine --;		// (*2)->(*1)
 			targetCh = 0;		// left edge of line
 		} else {
 			// Above row is in-table, i.e., Data row: (*3)(*4)(*5)
@@ -308,5 +315,82 @@ export default class HomekeyActionPlugin extends Plugin {
 		}
 
 		return -1;
+	}
+
+
+	cursorDownAction(editor: Editor) {
+		const cursor = editor.getCursor();
+
+		// Bottom of file
+		if (cursor.line == editor.lineCount() - 1) {
+			editor.exec('goDown');
+			return;
+		}
+
+		const line = editor.getLine(cursor.line);
+		const ch = cursor.ch;
+		if (!this.isPositionInTable(editor)) {
+			// Out of table
+
+			if (this.isPositionInTable(editor, cursor.line + 1, 1)) {
+				// Line directly above the table, move the cursor to +1 row instead of goDown.
+				const targetCh = this.getChByCellIndex(editor, cursor.line + 1, 0);
+				editor.setCursor({ line: cursor.line + 1, ch: targetCh });
+				return;
+			} else {
+				editor.exec('goDown');
+				return;
+			}
+
+		} else {
+			// In the table
+			// Move to the BEGINNING of the same cell one row blow
+			const cellIndex = this.getCellIndex(line, ch);
+			this.setCursorToNextRow(editor, cellIndex);
+			return;
+		}
+	}
+
+
+	// Moves the cursor to the beginning of the specified column number in the row below the current row.
+	//
+	// | header | (*1)header(*1b)text |  <-- HeaderRow
+	// | ------ | ------------------- |  <-- DelimiterLine
+	// | text   | (*2)text(*2b)text   |
+	// | text   | (*3)text(*3b)text   |
+	// (*4)
+	//
+	// (*1)->(*2),(*1b)->(*2) if (cursor.line+1) is DelimiterLine, go to same column at (cursor.line+2).
+	// (*2)->(*3),(*2b)->(*3) go to same column at (cursor.line+1).
+	// (*3)->(*4),(*3b)->(*4) go out of the table.
+	setCursorToNextRow(editor: Editor, cellIndex: number) {
+		const cursor = editor.getCursor();
+		let targetLine = cursor.line;
+		let targetCh = 0;
+
+		if (!this.isPositionInTable(editor, cursor.line + 1, 1)) {
+			// The next line is outside the table. (*3)
+			targetLine ++;		// (*3)->(*4)
+			targetCh = 0;		// left edge of line
+		} else {
+			const oneLineDown = editor.getLine(cursor.line + 1);
+			const isDelimiterLineBelow = /^\s*\|?[:\s-]+\|[:\s- |]*$/.test(oneLineDown);
+
+			if (isDelimiterLineBelow) {
+				targetLine += 2;	// (*1)->(*2)
+			} else {
+				targetLine ++;		// (*2)->(*3)
+			}
+			targetCh = this.getChByCellIndex(editor, targetLine, cellIndex);
+		}
+		if (targetCh != -1) {
+			// Use cm directly to avoid interference with the table editor
+			const cm = (editor as any).cm;
+			const pos = editor.posToOffset({ line: targetLine, ch: targetCh });
+			cm.dispatch({
+			        selection: { anchor: pos, head: pos }
+			});
+			cm.focus();
+		}
 	}
 }
