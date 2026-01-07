@@ -47,6 +47,14 @@ export default class HomekeyActionPlugin extends Plugin {
 			}
 		});
 
+		this.addCommand({
+			id: 'cursor-left',
+			name: 'Cursor LEFT',
+			editorCallback: (editor: Editor, _: MarkdownView) => {
+				this.cursorLeftAction(editor)
+			}
+		});
+
 	}
 
 	onunload() {
@@ -61,7 +69,7 @@ export default class HomekeyActionPlugin extends Plugin {
 
 		const line = editor.getLine(cursor.line);
 		if (this.isPositionInTable(editor)) {
-			position = this.getBeginningOfCellPosition(line, position);
+			({ pos: position } = this.getBeginningOfCellPosition(line, position));
 		} else {
 			position = this.getBeginningOfLinePosition(line, position, isAdvanced);
 		}
@@ -92,7 +100,16 @@ export default class HomekeyActionPlugin extends Plugin {
 	}
 
 
-	getBeginningOfCellPosition(line: string, ch: number): number {
+	//   ch ...   d  c                b  b   a              a
+	//            V  V                V  V   V              V
+	// line ... |    left cell text |    current cell text      |
+	//  pos ...   D  C            B      A
+	//
+	//					ch=a   -> return pos=A,   edge=false
+	//					ch=b   -> return pos=B,   edge=true
+	//					ch=c,d -> return pos=C,D, edge=true
+	//
+	getBeginningOfCellPosition(line: string, ch: number): { pos: number, isOnLeftEdge: boolean } {
 		const lastPipeIndex = line.lastIndexOf('|', ch - 1);
 		if (lastPipeIndex === -1) return 0;
 
@@ -100,17 +117,20 @@ export default class HomekeyActionPlugin extends Plugin {
 		const startOffset = line.slice(lastPipeIndex + 1).search(/\S|$/);
 		const startOfCellContent = lastPipeIndex + 1 + startOffset;
 		if (ch > startOfCellContent) {
-			return startOfCellContent;
+			return { pos: startOfCellContent, isOnLeftEdge: false }; // (A)
+		}
+
+		if (lastPipeIndex === 0) {
+			return { pos: ch, isOnLeftEdge: true }; // Leftmost cell (C,D)
 		}
 
 		// If already at the start, move to the end of the previous cell content.
 		const secondLastPipeIndex = line.lastIndexOf('|', lastPipeIndex - 1);
 		if (secondLastPipeIndex !== -1) {
 			const endOffset = line.slice(secondLastPipeIndex + 1, lastPipeIndex).trimEnd().length;
-			return secondLastPipeIndex + 1 + endOffset;
+			return { pos: secondLastPipeIndex + 1 + endOffset, isOnLeftEdge: true }; // (B)
 		}
-
-		return ch; // No left cell
+		return { pos: ch, isOnLeftEdge: true };
 	}
 
 
@@ -206,8 +226,6 @@ export default class HomekeyActionPlugin extends Plugin {
 			return;
 		}
 
-		const line = editor.getLine(cursor.line);
-		const ch = cursor.ch;
 		if (!this.isPositionInTable(editor)) {
 			// Out of table
 
@@ -224,6 +242,8 @@ export default class HomekeyActionPlugin extends Plugin {
 		} else {
 			// In the table
 
+			const line = editor.getLine(cursor.line);
+			const ch = cursor.ch;
 			const lastPipeIndex = line.lastIndexOf('|', ch - 1);
 			if (lastPipeIndex === -1) return;
 
@@ -327,8 +347,6 @@ export default class HomekeyActionPlugin extends Plugin {
 			return;
 		}
 
-		const line = editor.getLine(cursor.line);
-		const ch = cursor.ch;
 		if (!this.isPositionInTable(editor)) {
 			// Out of table
 
@@ -345,6 +363,8 @@ export default class HomekeyActionPlugin extends Plugin {
 		} else {
 			// In the table
 			// Move to the BEGINNING of the same cell one row blow
+			const line = editor.getLine(cursor.line);
+			const ch = cursor.ch;
 			const cellIndex = this.getCellIndex(line, ch);
 			this.setCursorToNextRow(editor, cellIndex);
 			return;
@@ -391,6 +411,30 @@ export default class HomekeyActionPlugin extends Plugin {
 			        selection: { anchor: pos, head: pos }
 			});
 			cm.focus();
+		}
+	}
+
+
+	cursorLeftAction(editor: Editor) {
+		const cursor = editor.getCursor();
+
+		if (!this.isPositionInTable(editor)) {
+			// Out of table
+
+			editor.exec('goLeft');
+
+		} else {
+			// In the table
+
+			// Check whether left edge of cell text
+			const { pos: startOfCellContent, isOnLeftEdge } = this.getBeginningOfCellPosition(editor.getLine(cursor.line), cursor.ch);
+
+			if (isOnLeftEdge) {
+				// Move to the left cell
+				editor.setCursor({ line: cursor.line, ch: startOfCellContent });
+			} else {
+				editor.exec('goLeft');
+			}
 		}
 	}
 }
