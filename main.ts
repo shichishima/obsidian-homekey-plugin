@@ -55,6 +55,14 @@ export default class HomekeyActionPlugin extends Plugin {
 			}
 		});
 
+		this.addCommand({
+			id: 'cursor-right',
+			name: 'Cursor RIGHT',
+			editorCallback: (editor: Editor, _: MarkdownView) => {
+				this.cursorRightAction(editor)
+			}
+		});
+
 	}
 
 	onunload() {
@@ -182,7 +190,7 @@ export default class HomekeyActionPlugin extends Plugin {
 		if (position === line.length) return;
 
 		if (this.isPositionInTable(editor)) {
-			position = this.getEndOfCellPosition(line, position);
+			({ pos: position } = this.getEndOfCellPosition(line, position));
 		} else {
 			position = line.length;
 		}
@@ -190,17 +198,29 @@ export default class HomekeyActionPlugin extends Plugin {
 	}
 
 
-	getEndOfCellPosition(line: string, ch: number): number {
+	//              c     d  d              e       b  a
+	//              V     V  V              V       V  V
+	// line ... | cell text    |    cell text      |
+	//                    C         D       E          A
+	//
+	getEndOfCellPosition(line: string, ch: number): { pos: number, isOnRightEdge: boolean } {
 		const nextPipeIndex = line.indexOf('|', ch);
 
 		// If no more pipes are found, move to the very end of the line.
-		if (nextPipeIndex === -1) return line.length;
+		if (nextPipeIndex === -1) {
+			const length = line.length;
+			if (ch == length) {
+				return { pos: line.length, isOnRightEdge: true};	// (a->A)
+			} else {
+				return { pos: line.length, isOnRightEdge: false};	// (b->A)
+			}
+		}
 
 		// If the cursor is before the actual content ends, move to the end of the content (excluding trailing spaces).
 		const cellContentBeforePipe = line.slice(0, nextPipeIndex);
 		const contentEndOffset = cellContentBeforePipe.trimEnd().length;
 		if (ch < contentEndOffset) {
-			return contentEndOffset;
+			return { pos: contentEndOffset, isOnRightEdge: false};	// (c->C)
 		}
 
 		// If already at or past the content end, move to the start of the next cell's content.
@@ -209,9 +229,9 @@ export default class HomekeyActionPlugin extends Plugin {
 		if (nextPipeEndIndex !== -1) {
 			const searchArea = line.slice(nextPipeIndex + 1, nextPipeEndIndex);
 			const startOffset = searchArea.search(/\S|$/);
-			return nextPipeIndex + 1 + startOffset;
+			return { pos: nextPipeIndex + 1 + startOffset, isOnRightEdge: true };	// (d->D)
 		} else {
-			return ch;
+			return { pos: ch, isOnRightEdge: true };	// (e->E)
 		}
 	}
 
@@ -434,6 +454,30 @@ export default class HomekeyActionPlugin extends Plugin {
 				editor.setCursor({ line: cursor.line, ch: startOfCellContent });
 			} else {
 				editor.exec('goLeft');
+			}
+		}
+	}
+
+
+	cursorRightAction(editor: Editor) {
+		const cursor = editor.getCursor();
+
+		if (!this.isPositionInTable(editor)) {
+			// Out of table
+
+			editor.exec('goRight');
+
+		} else {
+			// In the table
+
+			// Check whether left edge of cell text
+			const { pos: endOfCellContent, isOnRightEdge } = this.getEndOfCellPosition(editor.getLine(cursor.line), cursor.ch);
+
+			if (isOnRightEdge) {
+				// Move to the left cell
+				editor.setCursor({ line: cursor.line, ch: endOfCellContent });
+			} else {
+				editor.exec('goRight');
 			}
 		}
 	}
