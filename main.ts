@@ -1,4 +1,4 @@
-import { Editor, Plugin } from 'obsidian';
+import { Editor, Plugin, MarkdownView } from 'obsidian';
 import { syntaxTree } from '@codemirror/language';
 
 export default class HomekeyActionPlugin extends Plugin {
@@ -24,8 +24,8 @@ export default class HomekeyActionPlugin extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'endkey',
-			name: 'End key (smart end-of-text)',
+			id: 'cursor-end',
+			name: 'Cursor END',
 			editorCallback: (editor: Editor, _: MarkdownView) => {
 				this.smartEndAction(editor)
 			}
@@ -76,9 +76,11 @@ export default class HomekeyActionPlugin extends Plugin {
 		if (position == 0) return;
 
 		const line = editor.getLine(cursor.line);
-		if (this.isPositionInTable(editor)) {
+		if (this.isLivePreviewMode(MarkdownView) && this.isPositionInTable(editor)) {
+			// LivePreviewMode & In the table
 			({ pos: position } = this.getBeginningOfCellPosition(line, position));
 		} else {
+			// Out of table
 			position = this.getBeginningOfLinePosition(line, position, isAdvanced);
 		}
 		editor.setCursor({ line: cursor.line, ch: position });
@@ -105,6 +107,27 @@ export default class HomekeyActionPlugin extends Plugin {
 		}
 
 		return false;
+	}
+
+
+	isLivePreviewMode() {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+
+		if (view) {
+			const mode = view.getMode(); // "preview" または "source"
+
+			if (mode === 'preview') {
+				return false;
+			} else if (mode === "source") {
+				const state = view.getState();
+
+				if (state.source) {
+					return false;
+				} else {
+					return true;
+				}
+			}
+		}
 	}
 
 
@@ -189,9 +212,11 @@ export default class HomekeyActionPlugin extends Plugin {
 
 		if (position === line.length) return;
 
-		if (this.isPositionInTable(editor)) {
+		if (this.isLivePreviewMode(MarkdownView) && this.isPositionInTable(editor)) {
+			// LivePreviewMode & In the table
 			({ pos: position } = this.getEndOfCellPosition(line, position));
 		} else {
+			// Out of table
 			position = line.length;
 		}
 		editor.setCursor({ line: cursor.line, ch: position });
@@ -246,42 +271,42 @@ export default class HomekeyActionPlugin extends Plugin {
 			return;
 		}
 
-		if (!this.isPositionInTable(editor)) {
-			// Out of table
+		if (this.isLivePreviewMode(MarkdownView)) {
+			if (this.isPositionInTable(editor)) {
+				// LivePreviewMode & In the table
+				const line = editor.getLine(cursor.line);
+				const ch = cursor.ch;
+				const lastPipeIndex = line.lastIndexOf('|', ch - 1);
+				if (lastPipeIndex === -1) return;
 
-			if (this.isPositionInTable(editor, cursor.line - 1, 1)) {
-				// Line directly below the table, move the cursor to -1 row instead of goUP.
-				const targetCh = this.getChByCellIndex(editor, cursor.line - 1, 0);
-				editor.setCursor({ line: cursor.line - 1, ch: targetCh });
-				return;
+				// Locate the first non-space character in the current cell
+				const startOffset = line.slice(lastPipeIndex + 1).search(/\S|$/);
+				const startOfCellContent = lastPipeIndex + 1 + startOffset;
+
+				if (ch !== startOfCellContent) {
+					// In cell goUP
+					editor.exec('goUp');
+					return;
+				} else {
+					// At the beginning of the text in a cell, move to the beginning of the same cell one row above
+					const cellIndex = this.getCellIndex(line, ch);
+					this.setCursorToPrevRow(editor, cellIndex);
+					return;
+				}
 			} else {
-				editor.exec('goUp');
-				return;
-			}
+				// Out of table
 
-		} else {
-			// In the table
-
-			const line = editor.getLine(cursor.line);
-			const ch = cursor.ch;
-			const lastPipeIndex = line.lastIndexOf('|', ch - 1);
-			if (lastPipeIndex === -1) return;
-
-			// Locate the first non-space character in the current cell
-			const startOffset = line.slice(lastPipeIndex + 1).search(/\S|$/);
-			const startOfCellContent = lastPipeIndex + 1 + startOffset;
-
-			if (ch !== startOfCellContent) {
-				// In cell goUP
-				editor.exec('goUp');
-				return;
-			} else {
-				// At the beginning of the text in a cell, move to the beginning of the same cell one row above
-				const cellIndex = this.getCellIndex(line, ch);
-				this.setCursorToPrevRow(editor, cellIndex);
-				return;
+				if (this.isPositionInTable(editor, cursor.line - 1, 1)) {
+					// Line directly below the table, move the cursor to -1 row instead of goUP.
+					const targetCh = this.getChByCellIndex(editor, cursor.line - 1, 0);
+					editor.setCursor({ line: cursor.line - 1, ch: targetCh });
+					return;
+				}
 			}
 		}
+
+		editor.exec('goUp');
+		return;
 	}
 
 
@@ -367,28 +392,30 @@ export default class HomekeyActionPlugin extends Plugin {
 			return;
 		}
 
-		if (!this.isPositionInTable(editor)) {
-			// Out of table
+		if (this.isLivePreviewMode(MarkdownView)) {
+			if (this.isPositionInTable(editor)) {
+				// LivePreviewMode & In the table
 
-			if (this.isPositionInTable(editor, cursor.line + 1, 1)) {
-				// Line directly above the table, move the cursor to +1 row instead of goDown.
-				const targetCh = this.getChByCellIndex(editor, cursor.line + 1, 0);
-				editor.setCursor({ line: cursor.line + 1, ch: targetCh });
+				// Move to the BEGINNING of the same cell one row blow
+				const line = editor.getLine(cursor.line);
+				const ch = cursor.ch;
+				const cellIndex = this.getCellIndex(line, ch);
+				this.setCursorToNextRow(editor, cellIndex);
 				return;
 			} else {
-				editor.exec('goDown');
-				return;
-			}
+				// Out of table
 
-		} else {
-			// In the table
-			// Move to the BEGINNING of the same cell one row blow
-			const line = editor.getLine(cursor.line);
-			const ch = cursor.ch;
-			const cellIndex = this.getCellIndex(line, ch);
-			this.setCursorToNextRow(editor, cellIndex);
-			return;
+				if (this.isPositionInTable(editor, cursor.line + 1, 1)) {
+					// Line directly above the table, move the cursor to +1 row instead of goDown.
+					const targetCh = this.getChByCellIndex(editor, cursor.line + 1, 0);
+					editor.setCursor({ line: cursor.line + 1, ch: targetCh });
+					return;
+				}
+			}
 		}
+
+		editor.exec('goDown');
+		return;
 	}
 
 
@@ -438,13 +465,8 @@ export default class HomekeyActionPlugin extends Plugin {
 	cursorLeftAction(editor: Editor) {
 		const cursor = editor.getCursor();
 
-		if (!this.isPositionInTable(editor)) {
-			// Out of table
-
-			editor.exec('goLeft');
-
-		} else {
-			// In the table
+		if (this.isLivePreviewMode(MarkdownView) && this.isPositionInTable(editor)) {
+			// LivePreviewMode & In the table
 
 			// Check whether left edge of cell text
 			const { pos: startOfCellContent, isOnLeftEdge } = this.getBeginningOfCellPosition(editor.getLine(cursor.line), cursor.ch);
@@ -455,6 +477,10 @@ export default class HomekeyActionPlugin extends Plugin {
 			} else {
 				editor.exec('goLeft');
 			}
+		} else {
+			// Out of table
+
+			editor.exec('goLeft');
 		}
 	}
 
@@ -462,13 +488,8 @@ export default class HomekeyActionPlugin extends Plugin {
 	cursorRightAction(editor: Editor) {
 		const cursor = editor.getCursor();
 
-		if (!this.isPositionInTable(editor)) {
-			// Out of table
-
-			editor.exec('goRight');
-
-		} else {
-			// In the table
+		if (this.isLivePreviewMode(MarkdownView) && this.isPositionInTable(editor)) {
+			// LivePreviewMode & In the table
 
 			// Check whether left edge of cell text
 			const { pos: endOfCellContent, isOnRightEdge } = this.getEndOfCellPosition(editor.getLine(cursor.line), cursor.ch);
@@ -479,6 +500,11 @@ export default class HomekeyActionPlugin extends Plugin {
 			} else {
 				editor.exec('goRight');
 			}
+
+		} else {
+			// Out of table
+
+			editor.exec('goRight');
 		}
 	}
 }
