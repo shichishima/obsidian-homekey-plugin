@@ -112,3 +112,16 @@ Excerpt from `.obsidian/hotkeys.json`
 - **Logical Line Only:** Currently, this plugin moves the cursor based on logical lines.
 It does not yet support "visual line" movement (wrapped lines) found in some native macOS behaviors.
 - **Tables:** Smart cursor movement within table cells is not currently supported.
+
+---
+**Want a smarter HOME key and Emacs-style navigation?**
+
+[Universal Cursor Hotkeys](https://github.com/shichishima/obsidian-universal-cursor-hotkeys) is the successor to this plugin, with two key improvements to HOME:
+- **3-step HOME on wrapped lines** — first jumps to the visual line start, then to content start, then to absolute line beginning.
+- **Smart HOME inside Markdown table cells** — works across in-cell lines in Live Preview and Source Mode.
+ 
+Both behaviors are configurable via the plugin settings.
+
+It also adds full Emacs-style navigation (Ctrl+P/N/B/F/E), Kill & Yank, and more.
+
+*(Install via [BRAT](https://github.com/TfTHacker/obsidian42-brat) — official listing under review)*
