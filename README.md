@@ -124,4 +124,12 @@ Both behaviors are configurable via the plugin settings.
 
 It also adds full Emacs-style navigation (Ctrl+P/N/B/F/E), Kill & Yank, and more.
 
+<table>
+  <tr>
+    <td align="center"><img width="200" height="200" alt="Image" src="https://github.com/user-attachments/assets/8d773e0a-c9c9-4e18-8665-19c4cf32a141" /></td>
+    <td align="center"><img width="200" height="200" alt="Image" src="https://github.com/user-attachments/assets/b89fe375-5754-422d-bca2-4ae674077788" /></td>
+    <td align="center"><img width="200" height="200" alt="Image" src="https://github.com/user-attachments/assets/4c38d0a4-4e9d-4645-af92-26265be68135" /></td>
+  </tr>
+</table>
+
 *(Install via [BRAT](https://github.com/TfTHacker/obsidian42-brat) — official listing under review)*
